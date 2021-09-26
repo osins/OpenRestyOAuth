@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  nginx-oauth:
+    container_name: nginx-oauth
+    image: nginx-oauth
+    build:
+      context: ./
+      dockerfile: dockerfile
+    restart: always
+    networks: 
+      - net
+    ports:
+      - 8700:80
+    working_dir: "/app"
+    env_file:
+      - .env
+    volumes:
+      - .docker/conf/nginx/conf.d:/etc/nginx/conf.d
+      - .docker/conf/nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      - ./src:/app
+
+networks:
+  net:
+    ipam:
+      driver: default
