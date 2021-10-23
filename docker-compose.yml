@@ -3,7 +3,7 @@ version: "3.8"
 services:
   nginx-oauth:
     container_name: nginx-oauth
-    image: nginx-oauth
+    image: osins/openresty-oauth
     build:
       context: ./
       dockerfile: dockerfile

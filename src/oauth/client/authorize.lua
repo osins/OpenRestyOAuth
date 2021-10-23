@@ -1,19 +1,48 @@
 local JSON = require('cjson')
 local COOKIE = require('resty.cookie')
-local JWT = require "resty.jwt"
+local JWT = require('resty.jwt')
 
 Authorize = {}
+-- 请求获取token验证码
 function Authorize.authorizeCode()
-    local redirect_uri = ngx.escape_uri(ngx.var.uri)
-    local callback_uri = ngx.escape_uri(os.getenv("SSO_CALLBACK_URI") ..
-                                            "?redirect=" .. redirect_uri)
+    local point = os.getenv("SSO_AUTH_POINT")
+    if not point then
+        ngx.log(ngx.ERR, "sso auth point value is nil.")
+        return
+    end
 
-    ngx.redirect(os.getenv("SSO_AUTH_POINT") .. "?client_id=" ..
-                     os.getenv("SSO_CLIENT_ID") ..
+    local client_id = os.getenv("SSO_CLIENT_ID")
+    if not client_id then
+        ngx.log(ngx.ERR, "sso client id value is nil.")
+        return
+    end
+
+    local sso_callback_uri = os.getenv("SSO_CALLBACK_URI")
+    if not sso_callback_uri then
+        ngx.log(ngx.ERR, "sso callback uri value is nil.")
+        return
+    end
+
+    local redirect_uri = ngx.escape_uri(ngx.var.uri)
+    if not redirect_uri then
+        ngx.log(ngx.ERR, "ngx uri value is nil.")
+        return
+    end
+
+    local callback_uri = ngx.escape_uri(sso_callback_uri .. "?redirect=" ..
+                                            redirect_uri)
+
+    ngx.redirect(point .. "?client_id=" .. client_id ..
                      "&response_type=code&redirect_uri=" .. callback_uri, 302)
 end
 
 function Authorize.verification()
+    if (ngx.var.scheme ~= 'https') then
+        ngx.log(ngx.ERR, 'site scheme not is https.')
+        ngx.exit(ngx.HTTP_FORBIDDEN)
+        return
+    end
+
     local cookie, err = COOKIE:new()
     if not cookie then
         ngx.log(ngx.ERR, err)
@@ -42,6 +71,8 @@ end
 
 function Authorize.callback()
     local code = ngx.var.arg_code
+    if (code == nil) then ngx.redirect("/", 302) end
+
     local httpc = require("resty.http").new()
     local res, err = httpc:request_uri("https://sso.humanrisk.cn/oauth/token", {
         method = "POST",
@@ -71,8 +102,8 @@ function Authorize.callback()
         path = "/",
         secure = true,
         httponly = true,
-        expires = "Wed, 09 Jun 2021 10:18:14 GMT",
-        max_age = 50,
+        expires = "Wed, 09 Jun 2029 10:18:14 GMT",
+        max_age = 60 * 60 * 24 * 30,
         samesite = "Strict",
         extension = "a4334aebaec"
     })
